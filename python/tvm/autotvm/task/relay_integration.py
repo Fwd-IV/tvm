@@ -32,6 +32,28 @@ logger = logging.getLogger('autotvm')
 
 
 # TODO(moreau89) find a more elegant way to build for VTAs
+def _lower(func,
+           target,
+           target_host,
+           params):
+    """ Helper to build VTA properly.
+    """
+
+    from tvm import relay
+    from tvm.relay.backend import graph_runtime_codegen
+
+    if hasattr(target, 'device_name') and target.device_name == "vta":
+        with relay.build_config(opt_level=3, disabled_pass={"AlterOpLayout"}):
+            import vta
+            with vta.build_config():
+                return relay.build(func, target, target_host, params)
+    
+    # default case
+    _, mod, _ = relay.optimize(func, target, params)
+    grc = graph_runtime_codegen.GraphRuntimeCodegen(None, target)
+    grc.codegen(mod["main"])
+
+# TODO(moreau89) find a more elegant way to build for VTAs
 def _build(func,
            target,
            target_host,
@@ -106,7 +128,7 @@ def extract_from_program(func, params, ops, target, target_host=None):
         relay.backend.compile_engine.get().clear()
         # wrap build call in thread to avoid multiprocessing problems
         mod = relay.Module.from_expr(func)
-        build_thread = threading.Thread(target=_build,
+        build_thread = threading.Thread(target=_lower,
                                         args=(mod,
                                               target,
                                               target_host,
