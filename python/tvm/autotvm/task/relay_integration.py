@@ -31,12 +31,11 @@ from .topi_integration import TaskExtractEnv
 logger = logging.getLogger('autotvm')
 
 
-# TODO(moreau89) find a more elegant way to build for VTAs
+# TODO(moreau89) find a more elegant way to lower for VTAs
 def _lower(func,
            target,
-           target_host,
            params):
-    """ Helper to build VTA properly.
+    """ Helper to lower VTA properly.
     """
 
     from tvm import relay
@@ -46,12 +45,13 @@ def _lower(func,
         with relay.build_config(opt_level=3, disabled_pass={"AlterOpLayout"}):
             import vta
             with vta.build_config():
-                return relay.build(func, target, target_host, params)
-    
+                _, mod, _ = relay.optimize(func, target, params)
+                grc = graph_runtime_codegen.GraphRuntimeCodegen(None, target)
+                return grc.codegen(mod["main"])
     # default case
     _, mod, _ = relay.optimize(func, target, params)
     grc = graph_runtime_codegen.GraphRuntimeCodegen(None, target)
-    grc.codegen(mod["main"])
+    return grc.codegen(mod["main"])
 
 # TODO(moreau89) find a more elegant way to build for VTAs
 def _build(func,
@@ -131,7 +131,6 @@ def extract_from_program(func, params, ops, target, target_host=None):
         build_thread = threading.Thread(target=_lower,
                                         args=(mod,
                                               target,
-                                              target_host,
                                               params))
         build_thread.start()
         build_thread.join()
