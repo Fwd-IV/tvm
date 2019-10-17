@@ -53,23 +53,6 @@ def _lower(func,
     grc = graph_runtime_codegen.GraphRuntimeCodegen(None, target)
     return grc.codegen(mod["main"])
 
-# TODO(moreau89) find a more elegant way to build for VTAs
-def _build(func,
-           target,
-           target_host,
-           params):
-    """ Helper to build VTA properly.
-    """
-
-    from tvm import relay
-
-    if hasattr(target, 'device_name') and target.device_name == "vta":
-        with relay.build_config(opt_level=3, disabled_pass={"AlterOpLayout"}):
-            import vta
-            with vta.build_config():
-                return relay.build(func, target, target_host, params)
-    # default case
-    return relay.build(func, target, target_host, params)
 
 def extract_from_program(func, params, ops, target, target_host=None):
     """ Extract tuning tasks from a relay program.
