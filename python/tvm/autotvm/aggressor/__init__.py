@@ -16,4 +16,4 @@
 # under the License.
 """CPU resource aggressor that affects actual measurement"""
 
-from .aggressor import LlcAggressor
+from .aggressor import LlcAggressor, L2Aggressor

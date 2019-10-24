@@ -31,14 +31,15 @@ except ImportError:
     psutil = None
 
 from . import executor
-from ..aggressor import LlcAggressor
+from ..aggressor import LlcAggressor, L2Aggressor
 
 
-def llc_aggress(ratio=1.0, n_threads=1):
-#    import mkl
-#    mkl.set_num_threads(n_threads)
-    llc_aggressor = LlcAggressor(ratio)
-    llc_aggressor.run()
+def aggress(aggress_type, ratio=1.0):
+    if aggress_type == "llc":
+        aggressor = LlcAggressor(ratio)
+    elif aggress_type == "l2":
+        aggressor = L2Aggressor(ratio)
+    aggressor.run()
 
 
 def kill_child_processes(parent_pid, sig=signal.SIGTERM):
@@ -146,11 +147,11 @@ class LocalExecutor(executor.Executor):
         (e.g. cuda runtime, cudnn). Set this to False if you have used these runtime
         before submitting jobs.
     """
-    def __init__(self, timeout=None, do_fork=True, aggressing=False, llc_ratio=1.0):
+    def __init__(self, timeout=None, do_fork=True, aggressing=None, ratio=1.0):
         self.timeout = timeout or executor.Executor.DEFAULT_TIMEOUT
         self.do_fork = do_fork
         self.aggressing = aggressing
-        self.llc_ratio = llc_ratio
+        self.ratio = ratio
 
         if self.do_fork:
             if not psutil:
@@ -160,11 +161,10 @@ class LocalExecutor(executor.Executor):
     def submit(self, func, *args, **kwargs):
         if not self.do_fork:
             return LocalFutureNoFork(func(*args, **kwargs))
-
+        
         if self.aggressing:
-            n_threads = 16
-            aggressor = Process(target=llc_aggress, 
-                                args=(self.llc_ratio, n_threads))
+            aggressor = Process(target=aggress, 
+                                args=(self.aggressing, self.ratio))
             aggressor.start()
  
         queue = Queue(2)
