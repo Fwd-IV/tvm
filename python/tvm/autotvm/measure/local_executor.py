@@ -17,6 +17,7 @@
 """Local based implementation of the executor using multiprocessing"""
 
 import signal
+import psutil
 
 from multiprocessing import Process, Queue
 try:
@@ -30,6 +31,14 @@ except ImportError:
     psutil = None
 
 from . import executor
+from ..aggressor import LlcAggressor
+
+
+def llc_aggress(ratio=1.0, n_threads=1):
+#    import mkl
+#    mkl.set_num_threads(n_threads)
+    llc_aggressor = LlcAggressor(ratio)
+    llc_aggressor.run()
 
 
 def kill_child_processes(parent_pid, sig=signal.SIGTERM):
@@ -79,9 +88,10 @@ class LocalFuture(executor.Future):
     queue: multiprocessing.Queue
         queue for receiving the result of this task
     """
-    def __init__(self, process, queue):
+    def __init__(self, process, aggressor, queue):
         self._done = False
         self._process = process
+        self._aggressor = aggressor
         self._queue = queue
 
     def done(self):
@@ -96,6 +106,10 @@ class LocalFuture(executor.Future):
         if self._process.is_alive():
             kill_child_processes(self._process.pid)
             self._process.terminate()
+        if self._aggressor and self._aggressor.is_alive():
+            kill_child_processes(self._aggressor.pid)
+            self._aggressor.terminate()
+            del self._aggressor
         self._process.join()
         self._queue.close()
         self._queue.join_thread()
@@ -132,9 +146,11 @@ class LocalExecutor(executor.Executor):
         (e.g. cuda runtime, cudnn). Set this to False if you have used these runtime
         before submitting jobs.
     """
-    def __init__(self, timeout=None, do_fork=True):
+    def __init__(self, timeout=None, do_fork=True, aggressing=False, llc_ratio=1.0):
         self.timeout = timeout or executor.Executor.DEFAULT_TIMEOUT
         self.do_fork = do_fork
+        self.aggressing = aggressing
+        self.llc_ratio = llc_ratio
 
         if self.do_fork:
             if not psutil:
@@ -145,8 +161,18 @@ class LocalExecutor(executor.Executor):
         if not self.do_fork:
             return LocalFutureNoFork(func(*args, **kwargs))
 
+        if self.aggressing:
+            n_threads = 16
+            aggressor = Process(target=llc_aggress, 
+                                args=(self.llc_ratio, n_threads))
+            aggressor.start()
+ 
         queue = Queue(2)
         process = Process(target=call_with_timeout,
                           args=(queue, self.timeout, func, args, kwargs))
         process.start()
-        return LocalFuture(process, queue)
+
+        if self.aggressing:
+           return LocalFuture(process, aggressor, queue)
+        else:
+            return LocalFuture(process, None, queue)

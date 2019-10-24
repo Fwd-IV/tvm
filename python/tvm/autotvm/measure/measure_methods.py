@@ -182,7 +182,7 @@ class RPCRunner(Runner):
                  key, host, port, priority=1,
                  timeout=10, n_parallel=None,
                  number=4, repeat=3, min_repeat_ms=0, cooldown_interval=0.1,
-                 check_correctness=False):
+                 check_correctness=False, aggressing=False, llc_ratio=1.0):
         super(RPCRunner, self).__init__(timeout, n_parallel)
 
         self.key = key
@@ -200,7 +200,7 @@ class RPCRunner(Runner):
         self.check_correctness = check_correctness
         self.cooldown_interval = cooldown_interval
 
-        self.executor = LocalExecutor()
+        self.executor = LocalExecutor(aggressing=aggressing, llc_ratio=llc_ratio)
 
     def set_task(self, task):
         self.task = task
@@ -262,6 +262,7 @@ class RPCRunner(Runner):
                                            remote_args,
                                            self.ref_input,
                                            self.ref_output)
+
                 futures.append(ret)
 
             for future in futures:
@@ -312,13 +313,15 @@ class LocalRunner(RPCRunner):
     def __init__(self,
                  timeout=10,
                  number=4, repeat=3, min_repeat_ms=0, cooldown_interval=0.1,
-                 check_correctness=False):
+                 check_correctness=False, aggressing=False, llc_ratio=1.0):
         super(LocalRunner, self).__init__('', None, None, 0,
                                           timeout=timeout, n_parallel=1,
                                           number=number, repeat=repeat,
                                           min_repeat_ms=min_repeat_ms,
                                           cooldown_interval=cooldown_interval,
-                                          check_correctness=check_correctness)
+                                          check_correctness=check_correctness,
+                                          aggressing=aggressing, 
+                                          llc_ratio=llc_ratio)
         self.tracker = None
         self.server = None
 
