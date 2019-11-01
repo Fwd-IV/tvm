@@ -92,7 +92,7 @@ set(USE_GRAPH_RUNTIME_DEBUG OFF)
 set(USE_VM_PROFILER OFF)
 
 # Whether enable uTVM standalone runtime
-set(USE_MICRO_STANDALONE_RUNTIME ON)
+set(USE_MICRO_STANDALONE_RUNTIME OFF)
 
 # Whether build with LLVM support
 # Requires LLVM version >= 4.0
@@ -114,6 +114,10 @@ set(USE_BLAS none)
 # set(USE_MKL_PATH ../IntelSWTools/compilers_and_libraries_2018/windows/mkl) for WIN32
 # set(USE_MKL_PATH <path to venv or site-packages directory>) if using `pip install mkl`
 set(USE_MKL_PATH none)
+
+# Whether use OpenMP thread pool, choices: gnu, intel
+# Note: "gnu" uses gomp library, "intel" uses iomp5 library
+set(USE_OPENMP none)
 
 # Whether use contrib.random in runtime
 set(USE_RANDOM OFF)
@@ -140,6 +144,10 @@ set(USE_ROCBLAS OFF)
 set(USE_SORT ON)
 
 # Build ANTLR parser for Relay text format
+# Possible values:
+# - ON: enable ANTLR by searching default locations (cmake find_program for antlr4 and /usr/local for jar)
+# - OFF: disable ANTLR
+# - /path/to/antlr-*-complete.jar: path to specific ANTLR jar file
 set(USE_ANTLR OFF)
 
 # Whether use Relay debug mode
